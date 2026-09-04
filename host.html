@@ -49,6 +49,8 @@
   .join-url { font-size: clamp(18px, 2.2vw, 26px); font-weight: 700; word-break: break-all; }
   .qr { display: inline-block; padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-top: 16px; }
   .qr img, .qr canvas { display: block; }
+  .linkbox { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .linkbox .input { flex: 1; min-width: 220px; font-size: 15px; padding: 10px 12px; font-weight: 600; color: var(--green-700); cursor: text; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 40px; }
   .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--green-50); color: var(--green-800); font-weight: 600; font-size: 14px; animation: pop .25s ease both; }
   @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -188,7 +190,9 @@
           <div class="kicker" style="margin-top:22px">Game code</div>
           <div class="code-big" id="lobbyCode"></div>
           <div class="qr" id="qr"></div>
-          <div class="row" style="margin-top:14px"><button class="btn btn-sm" id="copyLink">Copy join link</button><span class="muted" id="lobbyHint" style="font-size:13px"></span></div>
+          <div class="kicker" style="margin-top:22px">Send this link to players</div>
+          <div class="linkbox"><input class="input" id="joinLinkIn" readonly spellcheck="false" aria-label="Join link"><button class="btn btn-primary" id="copyLink">Copy link</button><button class="btn" id="shareLink" hidden>Share</button></div>
+          <div class="muted" id="lobbyHint" style="font-size:13px;margin-top:8px"></div>
         </div>
         <div>
           <div class="card">
@@ -386,6 +390,7 @@
       if (st === 'playing' && override === 'leaderboard') btn('Board', function () { override = null; render(); });
       if (st === 'playing' && override !== 'leaderboard') btn('Leaderboard', function () { override = 'leaderboard'; render(); });
       if (st === 'playing') btn('End game', confirmEnd);
+      if (st !== 'ended') btn('Copy join link', copyJoinLink);
       btn('Home', function () { goHome(); });
     } else if (mode === 'editor') {
       const b = document.createElement('button'); b.className = 'btn btn-sm'; b.textContent = 'Back'; b.onclick = leaveEditor; nav.appendChild(b);
@@ -429,18 +434,32 @@
     if (qrFor !== code) {
       qrFor = code; $('qr').innerHTML = '';
       if (window.QRCode) new QRCode($('qr'), { text: url, width: 220, height: 220, colorDark: '#063d2a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-      $('lobbyHint').textContent = 'Scan the code or open the link and enter ' + code + '.';
+      $('lobbyHint').textContent = 'The link opens the join screen with the code filled in. Anyone can also open the site and type ' + code + '.';
     }
+    if (document.activeElement !== $('joinLinkIn')) $('joinLinkIn').value = url;
+    $('shareLink').hidden = !navigator.share;
     const p = players(), ids = Object.keys(p).sort(function (a, b) { return (p[a].joinedAt || 0) - (p[b].joinedAt || 0); });
     $('lobbyCount').textContent = ids.length + ' joined';
     $('lobbyChips').innerHTML = ids.length ? ids.map(function (k) { return '<span class="chip"><span class="dot ' + (p[k].online !== false ? 'online' : '') + '"></span>' + J.esc(p[k].name) + '</span>'; }).join('') : '<span class="muted" style="align-self:center">Waiting for players to join.</span>';
     if (document.activeElement !== $('setTimer')) $('setTimer').value = game.meta.timer || 30;
     $('setPenalty').classList.toggle('on', !!game.meta.penalty);
   }
-  $('copyLink').addEventListener('click', function () {
+  function copyJoinLink() {
     const url = J.joinUrl(code);
-    if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { toast('Join link copied.'); }, function () { toast(url); });
-    else toast(url);
+    const fallback = function () {
+      const inp = $('joinLinkIn'); inp.value = url; inp.focus(); inp.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      toast(ok ? 'Join link copied.' : url);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { toast('Join link copied.'); }, fallback);
+    else fallback();
+  }
+  $('copyLink').addEventListener('click', copyJoinLink);
+  $('joinLinkIn').addEventListener('focus', function () { this.select(); });
+  $('joinLinkIn').addEventListener('click', function () { this.select(); });
+  $('shareLink').addEventListener('click', function () {
+    const url = J.joinUrl(code);
+    navigator.share({ title: bank().title, text: 'Join the ' + bank().title + ' game. Code ' + code, url: url }).catch(function () {});
   });
   $('setTimer').addEventListener('change', function () {
     let v = Math.round(Number(this.value) || 30); v = Math.max(10, Math.min(90, v)); this.value = v;
