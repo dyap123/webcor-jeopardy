@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#00965f">
+<title>OSHA 500 Review Jeopardy</title>
+<link rel="icon" href="assets/webcor-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="bank.js"></script>
+<script src="shared.js"></script>
+<style>
+  body { background: var(--paper); min-height: 100dvh; display: flex; flex-direction: column; }
+  .topbar { position: sticky; top: 0; z-index: 5; padding-top: max(12px, env(safe-area-inset-top)); }
+  .stage { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 22px 18px 40px; }
+  .view { animation: rise .25s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 26px; line-height: 1.15; margin: 6px 0 6px; letter-spacing: -.01em; }
+  h2 { font-size: 20px; margin: 0 0 6px; }
+  .lede { color: var(--ink-2); margin: 0 0 22px; }
+  .brand-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 0 18px; }
+  .brand-hero .logo { height: 54px; margin-bottom: 14px; }
+  .brand-hero .kicker { margin-bottom: 4px; }
+
+  .status-card { text-align: center; padding: 34px 20px; }
+  .check { width: 68px; height: 68px; border-radius: 50%; background: var(--green-50); color: var(--green); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+  .check svg { width: 34px; height: 34px; }
+  .bigname { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+  .count { margin-top: 14px; font-weight: 600; color: var(--green-700); }
+  .leave { margin-top: 26px; font-size: 13px; }
+  .leave button { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 6px; }
+
+  .clue-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .clue-cat { font-weight: 700; color: var(--green-700); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+  .clue-val { font-weight: 800; color: var(--gold-600); font-size: 18px; }
+  .clue-text { font-size: 21px; font-weight: 600; line-height: 1.35; margin: 0 0 18px; }
+  .timer { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .timer-bar { flex: 1; height: 10px; border-radius: 999px; background: #e2ebe6; overflow: hidden; }
+  .timer-fill { height: 100%; width: 100%; background: var(--green); border-radius: 999px; transition: width .2s linear, background .3s ease; }
+  .timer-fill.warn { background: var(--gold); }
+  .timer-fill.late { background: var(--red); }
+  .timer-num { font-weight: 800; font-size: 20px; min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  .locked { background: var(--green-50); border: 1px solid #bfe3d2; border-radius: 12px; padding: 16px; }
+  .locked .kicker { color: var(--green-700); }
+  .locked .ans { font-size: 20px; font-weight: 700; margin-top: 4px; word-break: break-word; }
+  .expired { background: #f1f4f2; border-radius: 12px; padding: 16px; color: var(--ink-2); font-weight: 600; text-align: center; }
+
+  .result { border-radius: 16px; padding: 22px 20px; color: #fff; text-align: center; margin-bottom: 16px; }
+  .result.correct { background: linear-gradient(160deg, var(--green) 0%, var(--green-700) 100%); }
+  .result.wrong { background: linear-gradient(160deg, #d7553f 0%, #a8321f 100%); }
+  .result.none { background: linear-gradient(160deg, #7b8a84 0%, #55635d 100%); }
+  .result .big { font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
+  .result .delta { font-size: 40px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .result .sub { opacity: .9; margin-top: 6px; font-weight: 500; }
+  .answer-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .answer-row:first-child { border-top: 0; }
+  .answer-row .k { color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+  .answer-row .v { font-weight: 600; text-align: right; word-break: break-word; }
+  .standing { display: flex; align-items: baseline; justify-content: space-between; margin-top: 10px; padding: 14px 16px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .standing .r { font-size: 22px; font-weight: 800; }
+  .standing .s { font-size: 22px; font-weight: 800; color: var(--green-700); font-variant-numeric: tabular-nums; }
+
+  .lb { list-style: none; margin: 0; padding: 0; }
+  .lb li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+  .lb li.me { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,150,95,.12); }
+  .lb .rk { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lb .nm { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb .sc { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--green-700); }
+  .lb .gap { text-align: center; color: var(--muted); padding: 2px 0 8px; font-size: 13px; }
+
+  .podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; margin: 14px 0 18px; }
+  .pod { text-align: center; border-radius: 12px 12px 6px 6px; padding: 12px 8px; color: #fff; background: var(--green-700); }
+  .pod.p1 { background: linear-gradient(180deg, var(--gold) 0%, var(--gold-600) 100%); color: var(--green-950); min-height: 130px; }
+  .pod.p2 { background: #7d8a85; min-height: 104px; }
+  .pod.p3 { background: #b0713a; min-height: 90px; }
+  .pod .place { font-size: 12px; font-weight: 800; letter-spacing: .1em; opacity: .85; }
+  .pod .nm { font-weight: 800; font-size: 15px; margin: 4px 0 2px; word-break: break-word; }
+  .pod .sc { font-weight: 700; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <img class="logo white" src="assets/webcor-logo.png" alt="Webcor">
+  <div class="topbar-title" id="topTitle">Review Jeopardy</div>
+  <div class="pill" id="topCode" hidden></div>
+</header>
+
+<main class="stage">
+
+  <section class="view" id="v-join">
+    <div class="brand-hero">
+      <img class="logo" src="assets/webcor-logo.png" alt="Webcor">
+      <div class="kicker">Safety training</div>
+      <h1 id="joinTitle">OSHA 500 Review Jeopardy</h1>
+      <p class="lede">Enter the game code on the screen and your name to play.</p>
+    </div>
+    <form id="joinForm" class="card" autocomplete="off">
+      <div class="field">
+        <label for="codeIn">Game code</label>
+        <input class="input code" id="codeIn" maxlength="4" inputmode="text" autocapitalize="characters" spellcheck="false" placeholder="A B C D">
+      </div>
+      <div class="field">
+        <label for="nameIn">Your name</label>
+        <input class="input" id="nameIn" maxlength="24" placeholder="First name and last initial" autocomplete="off">
+      </div>
+      <div class="error" id="joinErr"></div>
+      <button class="btn btn-primary btn-lg btn-block" id="joinBtn" type="submit">Join game</button>
+    </form>
+  </section>
+
+  <section class="view" id="v-lobby" hidden>
+    <div class="card status-card">
+      <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+      <div class="kicker">You are in</div>
+      <div class="bigname" id="lobbyName"></div>
+      <p class="lede" style="margin:10px 0 0">Watch the screen. The host will start the game shortly.</p>
+      <div class="count" id="lobbyCount"></div>
+      <div class="leave"><button type="button" id="leaveBtn">Not you? Change name</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-answer" hidden>
+    <div class="card">
+      <div class="clue-head"><div class="clue-cat" id="aCat"></div><div class="clue-val" id="aVal"></div></div>
+      <p class="clue-text" id="aClue"></p>
+      <div class="timer"><div class="timer-bar"><div class="timer-fill" id="aFill"></div></div><div class="timer-num" id="aNum">30</div></div>
+      <form id="answerForm" autocomplete="off">
+        <div class="field" style="margin-bottom:10px">
+          <input class="input" id="answerIn" maxlength="120" placeholder="Type your answer" autocomplete="off" autocapitalize="sentences">
+        </div>
+        <button class="btn btn-gold btn-lg btn-block" id="answerBtn" type="submit">Submit answer</button>
+      </form>
+      <div class="locked" id="aLocked" hidden><div class="kicker">Answer locked in</div><div class="ans" id="aMine"></div><div class="muted" style="margin-top:6px;font-size:14px">Waiting for everyone else.</div></div>
+      <div class="expired" id="aExpired" hidden>Time is up. Waiting for the host.</div>
+    </div>
+  </section>
+
+  <section class="view" id="v-review" hidden>
+    <div class="card status-card">
+      <div class="kicker">Answers are in</div>
+      <h2 style="margin-top:6px">The host is checking answers</h2>
+      <div class="answer-row" style="margin-top:14px"><div class="k">Your answer</div><div class="v" id="rMine"></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-reveal" hidden>
+    <div class="result" id="rvCard"><div class="big" id="rvBig"></div><div class="delta" id="rvDelta"></div><div class="sub" id="rvSub"></div></div>
+    <div class="card" style="padding:6px 18px">
+      <div class="answer-row"><div class="k">Correct response</div><div class="v" id="rvKey"></div></div>
+      <div class="answer-row"><div class="k">Your answer</div><div class="v" id="rvMine"></div></div>
+    </div>
+    <div class="standing"><div><div class="kicker">Your standing</div><div class="r" id="rvRank"></div></div><div class="s" id="rvScore"></div></div>
+  </section>
+
+  <section class="view" id="v-between" hidden>
+    <div class="kicker">Leaderboard</div>
+    <h2 style="margin-bottom:4px">Watch the screen for the next clue</h2>
+    <p class="lede" id="bwSub"></p>
+    <ol class="lb" id="bwList"></ol>
+  </section>
+
+  <section class="view" id="v-end" hidden>
+    <div class="kicker">Final results</div>
+    <h2 id="endTitle">Game over</h2>
+    <p class="lede" id="endSub"></p>
+    <div class="podium" id="endPodium"></div>
+    <ol class="lb" id="endList"></ol>
+    <div class="leave" style="text-align:center"><button type="button" id="endLeave">Join another game</button></div>
+  </section>
+
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  const J = window.J;
+  J.init();
+  const pid = J.getPid();
+  const $ = function (id) { return document.getElementById(id); };
+  const VIEWS = ['join', 'lobby', 'answer', 'review', 'reveal', 'between', 'end'];
+
+  let code = null, myName = null, game = null, gameRef = null, timerId = null, currentView = null, lastRoundKey = null;
+
+  function show(v) {
+    if (currentView === v) return;
+    currentView = v;
+    VIEWS.forEach(function (x) { $('v-' + x).hidden = x !== v; });
+    if (v !== 'answer') stopTimer();
+    window.scrollTo(0, 0);
+  }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._id); toast._id = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+  function fmtAnswer(a) { return a ? 'What is ' + a.replace(/[?.]+$/, '') + '?' : ''; }
+
+  // ── join ────────────────────────────────────────────────────────────────
+  const urlCode = J.cleanCode(new URLSearchParams(location.search).get('g') || '');
+  const saved = J.lsGet('jeopardy.player', null);
+  if (urlCode) $('codeIn').value = urlCode;
+  else if (saved && saved.code) $('codeIn').value = saved.code;
+  if (saved && saved.name) $('nameIn').value = saved.name;
+
+  $('codeIn').addEventListener('input', function () { this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); });
+  $('joinForm').addEventListener('submit', function (e) { e.preventDefault(); join($('codeIn').value, $('nameIn').value, false); });
+  $('leaveBtn').addEventListener('click', leave);
+  $('endLeave').addEventListener('click', leave);
+
+  async function join(codeIn, nameIn, silent) {
+    const c = J.cleanCode(codeIn), n = String(nameIn || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+    const err = $('joinErr'); err.textContent = '';
+    if (c.length !== 4) { if (!silent) err.textContent = 'Enter the 4-character game code.'; return false; }
+    if (!n) { if (!silent) err.textContent = 'Enter your name.'; return false; }
+    $('joinBtn').disabled = true;
+    try {
+      const meta = (await J.gameRef(c, 'meta').get()).val();
+      if (!meta) { if (!silent) err.textContent = 'No game found with code ' + c + '.'; return false; }
+      if (meta.status === 'ended') { if (!silent) err.textContent = 'That game has already ended.'; return false; }
+      const players = (await J.gameRef(c, 'players').get()).val() || {};
+      const taken = Object.keys(players).filter(function (p) { return p !== pid; }).map(function (p) { return String(players[p].name || '').toLowerCase(); });
+      let finalName = n, i = 2;
+      while (taken.indexOf(finalName.toLowerCase()) !== -1) finalName = n + ' ' + (i++);
+      const upd = { name: finalName, online: true };
+      if (!players[pid]) { upd.joinedAt = J.TS(); upd.adjust = 0; }
+      await J.gameRef(c, 'players/' + pid).update(upd);
+      armPresence(c);
+      code = c; myName = finalName;
+      J.lsSet('jeopardy.player', { code: c, name: finalName });
+      if (finalName !== n && !silent) toast('That name was taken, so you are ' + finalName + '.');
+      subscribe();
+      return true;
+    } catch (ex) {
+      console.error(ex);
+      if (!silent) err.textContent = 'Could not join. Check your connection and try again.';
+      return false;
+    } finally {
+      $('joinBtn').disabled = false;
+    }
+  }
+  function armPresence(c) {
+    const r = J.gameRef(c, 'players/' + pid + '/online');
+    r.onDisconnect().set(false);
+  }
+  firebase.database().ref('.info/connected').on('value', function (s) {
+    if (s.val() === true && code) { J.gameRef(code, 'players/' + pid + '/online').set(true); armPresence(code); }
+  });
+  function subscribe() {
+    if (gameRef) gameRef.off();
+    gameRef = J.gameRef(code);
+    gameRef.on('value', function (s) { game = s.val(); render(); });
+  }
+  // gone = the game (or this player) no longer exists; never write presence then, or the write recreates the node.
+  function leave(msg, gone) {
+    if (gameRef) { gameRef.off(); gameRef = null; }
+    if (code) {
+      const online = J.gameRef(code, 'players/' + pid + '/online');
+      online.onDisconnect().cancel();
+      if (!gone) online.set(false);
+    }
+    J.lsSet('jeopardy.player', { name: myName || $('nameIn').value });
+    code = null; game = null; lastRoundKey = null;
+    $('topCode').hidden = true;
+    if (typeof msg === 'string') $('joinErr').textContent = msg;
+    show('join');
+  }
+
+  // ── render ──────────────────────────────────────────────────────────────
+  function render() {
+    if (!code) return;
+    if (!game || !game.meta) { leave('The host closed that game.', true); return; }
+    const meta = game.meta, bank = J.sanitiseBank(game.bank);
+    $('topTitle').textContent = bank.title;
+    $('joinTitle').textContent = bank.title;
+    $('topCode').textContent = code; $('topCode').hidden = false;
+    const players = game.players || {};
+    const me = players[pid];
+    if (me && me.name) myName = me.name;
+    if (!me) { leave('You were removed from the game.', true); return; }
+
+    if (meta.status === 'lobby') {
+      $('lobbyName').textContent = myName;
+      const n = Object.keys(players).length;
+      $('lobbyCount').textContent = n + (n === 1 ? ' player has joined' : ' players have joined');
+      show('lobby');
+      return;
+    }
+    if (meta.status === 'ended') { renderEnd(bank); show('end'); return; }
+
+    const round = game.round;
+    if (!round) { renderBetween(); show('between'); return; }
+    const key = round.c + '_' + round.r;
+    const clue = bank.categories[round.c] && bank.categories[round.c].clues[round.r] || { clue: '', answer: '', value: round.value };
+    const cat = bank.categories[round.c] ? bank.categories[round.c].name : '';
+    const mine = game.answers && game.answers[key] && game.answers[key][pid];
+    if (key !== lastRoundKey) { lastRoundKey = key; $('answerIn').value = ''; }
+
+    if (round.phase === 'answering') {
+      $('aCat').textContent = cat; $('aVal').textContent = J.money(round.value);
+      $('aClue').textContent = clue.clue;
+      const expired = J.serverNow() >= round.endsAt;
+      $('answerForm').hidden = !!mine || expired;
+      $('aLocked').hidden = !mine;
+      $('aExpired').hidden = !!mine || !expired;
+      if (mine) $('aMine').textContent = mine.text;
+      show('answer');
+      startTimer(round);
+      if (!mine && !expired) setTimeout(function () { $('answerIn').focus(); }, 60);
+      return;
+    }
+    if (round.phase === 'review') {
+      $('rMine').textContent = mine && mine.text ? mine.text : 'No answer';
+      show('review');
+      return;
+    }
+    // reveal
+    const list = J.deriveScores({ meta: meta, bank: bank, players: players, answers: game.answers });
+    const row = list.filter(function (x) { return x.pid === pid; })[0] || { rank: 0, score: 0 };
+    const card = $('rvCard');
+    card.className = 'result';
+    let delta = 0;
+    if (mine && mine.mark === 'correct') { card.classList.add('correct'); $('rvBig').textContent = 'Correct'; delta = Number(round.value) || 0; }
+    else if (mine && mine.text) { card.classList.add('wrong'); $('rvBig').textContent = 'Not quite'; delta = meta.penalty ? -(Number(round.value) || 0) : 0; }
+    else { card.classList.add('none'); $('rvBig').textContent = 'No answer'; }
+    $('rvDelta').textContent = delta > 0 ? '+' + J.money(delta) : (delta < 0 ? J.money(delta) : '');
+    $('rvSub').textContent = cat + ' for ' + J.money(round.value);
+    $('rvKey').textContent = fmtAnswer(clue.answer);
+    $('rvMine').textContent = mine && mine.text ? mine.text : 'No answer';
+    $('rvRank').textContent = '#' + row.rank + ' of ' + list.length;
+    $('rvScore').textContent = J.money(row.score);
+    show('reveal');
+  }
+
+  function lbRows(list, limit) {
+    const top = list.slice(0, limit);
+    const meIn = top.some(function (x) { return x.pid === pid; });
+    let html = top.map(function (x) {
+      return '<li class="' + (x.pid === pid ? 'me' : '') + '"><span class="rk">' + x.rank + '</span><span class="nm">' + J.esc(x.name) + '</span><span class="sc">' + J.money(x.score) + '</span></li>';
+    }).join('');
+    if (!meIn) {
+      const me = list.filter(function (x) { return x.pid === pid; })[0];
+      if (me) html += '<li class="gap">&middot; &middot; &middot;</li><li class="me"><span class="rk">' + me.rank + '</span><span class="nm">' + J.esc(me.name) + '</span><span class="sc">' + J.money(me.score) + '</span></li>';
+    }
+    return html;
+  }
+  function renderBetween() {
+    const list = J.deriveScores(game);
+    const me = list.filter(function (x) { return x.pid === pid; })[0];
+    $('bwSub').textContent = me ? 'You are #' + me.rank + ' with ' + J.money(me.score) + '.' : '';
+    $('bwList').innerHTML = lbRows(list, 5);
+  }
+  function renderEnd(bank) {
+    const list = J.deriveScores(game);
+    const me = list.filter(function (x) { return x.pid === pid; })[0];
+    $('endTitle').textContent = bank.title;
+    $('endSub').textContent = me ? 'You finished #' + me.rank + ' of ' + list.length + ' with ' + J.money(me.score) + '.' : '';
+    const p = function (x, cls, place) { return x ? '<div class="pod ' + cls + '"><div class="place">' + place + '</div><div class="nm">' + J.esc(x.name) + '</div><div class="sc">' + J.money(x.score) + '</div></div>' : '<div></div>'; };
+    $('endPodium').innerHTML = p(list[1], 'p2', '2ND') + p(list[0], 'p1', '1ST') + p(list[2], 'p3', '3RD');
+    $('endList').innerHTML = lbRows(list, 100);
+  }
+
+  // ── timer ───────────────────────────────────────────────────────────────
+  function startTimer(round) {
+    stopTimer();
+    const total = Math.max(1, round.endsAt - round.startedAt);
+    function tick() {
+      const rem = Math.max(0, round.endsAt - J.serverNow());
+      const frac = Math.min(1, rem / total);
+      const fill = $('aFill');
+      fill.style.width = (frac * 100) + '%';
+      fill.className = 'timer-fill' + (rem <= 5000 ? ' late' : (rem <= 10000 ? ' warn' : ''));
+      $('aNum').textContent = Math.ceil(rem / 1000);
+      if (rem <= 0) {
+        stopTimer();
+        const mine = game && game.answers && game.answers[round.c + '_' + round.r] && game.answers[round.c + '_' + round.r][pid];
+        if (!mine) { $('answerForm').hidden = true; $('aExpired').hidden = false; }
+      }
+    }
+    tick();
+    timerId = setInterval(tick, 200);
+  }
+  function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+  $('answerForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const round = game && game.round;
+    if (!round || round.phase !== 'answering') return;
+    if (J.serverNow() >= round.endsAt) { toast('Time is up.'); return; }
+    const text = $('answerIn').value.trim().slice(0, 120);
+    if (!text) return;
+    $('answerBtn').disabled = true;
+    J.gameRef(code, 'answers/' + round.c + '_' + round.r + '/' + pid).set({ text: text, ts: J.TS() })
+      .catch(function () { toast('Could not send your answer. Try again.'); })
+      .then(function () { $('answerBtn').disabled = false; });
+  });
+
+  // Auto-rejoin after a refresh, or land straight in the lobby from a shared link.
+  (async function boot() {
+    if (saved && saved.code && saved.name && (!urlCode || urlCode === saved.code)) {
+      const ok = await join(saved.code, saved.name, true);
+      if (ok) return;
+    }
+    show('join');
+    if ($('codeIn').value.length === 4) $('nameIn').focus(); else $('codeIn').focus();
+  })();
+})();
+</script>
+</body>
+</html>

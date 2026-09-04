@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#00965f">
+<title>Host · OSHA 500 Review Jeopardy</title>
+<link rel="icon" href="assets/webcor-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="bank.js"></script>
+<script src="shared.js"></script>
+<style>
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+  .topbar { height: 60px; flex: 0 0 60px; }
+  .topbar .logo { height: 32px; }
+  .join-hint { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+  .join-hint b { color: var(--ink); }
+  .hcount { font-weight: 700; color: var(--green-700); white-space: nowrap; }
+  .hnav { display: flex; gap: 8px; }
+  main { flex: 1; display: flex; flex-direction: column; }
+  .view { flex: 1; display: flex; flex-direction: column; }
+  .light { padding: 28px; max-width: 1100px; width: 100%; margin: 0 auto; }
+  .dark { flex: 1; display: flex; flex-direction: column; color: #fff; background: radial-gradient(1400px 700px at 50% -20%, #0f7f55 0%, var(--green-900) 55%, var(--green-950) 100%); }
+  h1 { font-size: 32px; letter-spacing: -.015em; margin: 0 0 6px; }
+  h2 { font-size: 22px; margin: 0 0 10px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 22px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } .join-hint { display: none; } }
+
+  /* home */
+  .hero { display: flex; align-items: center; gap: 26px; padding: 10px 0 26px; }
+  .hero .logo { height: 64px; }
+  .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .home-grid { grid-template-columns: 1fr; } }
+  .recent { list-style: none; margin: 10px 0 0; padding: 0; }
+  .recent li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .recent .c { font-weight: 800; letter-spacing: .18em; color: var(--green-700); }
+  .recent .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent time { color: var(--muted); font-size: 13px; }
+
+  /* lobby */
+  .code-big { font-size: clamp(64px, 9vw, 120px); font-weight: 800; letter-spacing: .22em; line-height: 1; color: var(--green-700); margin: 6px 0 4px; padding-left: .22em; font-variant-numeric: tabular-nums; }
+  .join-url { font-size: clamp(18px, 2.2vw, 26px); font-weight: 700; word-break: break-all; }
+  .qr { display: inline-block; padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-top: 16px; }
+  .qr img, .qr canvas { display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 40px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--green-50); color: var(--green-800); font-weight: 600; font-size: 14px; animation: pop .25s ease both; }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+  .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .setting .lbl { font-weight: 600; }
+  .setting .hint { color: var(--muted); font-size: 13px; }
+  .setting input[type=number] { width: 84px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--line); font-weight: 700; text-align: center; }
+  .switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: #cfd9d4; border: 0; padding: 0; transition: background .15s; flex: 0 0 auto; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .switch.on { background: var(--green); }
+  .switch.on::after { left: 23px; }
+
+  /* board */
+  .board-wrap { flex: 1; display: flex; flex-direction: column; padding: 16px 22px 0; }
+  .board { flex: 1; display: grid; gap: 10px; grid-template-columns: repeat(var(--cols, 5), 1fr); grid-template-rows: minmax(64px, .9fr) repeat(var(--rows, 5), 1fr); min-height: 0; }
+  .cat { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: clamp(13px, 1.5vw, 22px); padding: 8px 10px; line-height: 1.2; }
+  .tile { background: linear-gradient(180deg, #0f6b48 0%, #0b5e3f 100%); border: 1px solid rgba(255,255,255,.16); border-radius: 12px; color: var(--gold); font-weight: 800; font-size: clamp(26px, 4.2vw, 60px); display: flex; align-items: center; justify-content: center; text-shadow: 0 3px 0 rgba(0,0,0,.28); transition: transform .08s ease, background .15s ease, box-shadow .15s ease; font-variant-numeric: tabular-nums; }
+  .tile:hover { background: linear-gradient(180deg, #16895a 0%, #0f6b48 100%); transform: scale(1.025); box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+  .tile.used { background: rgba(255,255,255,.035); color: transparent; border-color: rgba(255,255,255,.06); cursor: default; transform: none; box-shadow: none; text-shadow: none; }
+  .bottombar { display: flex; align-items: center; gap: 12px; padding: 14px 22px; }
+  .bottombar .spacer { flex: 1; }
+  .bottombar .info { color: rgba(255,255,255,.75); font-weight: 600; }
+
+  /* clue */
+  .clue-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px 40px; }
+  .clue-kicker { color: var(--gold); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: clamp(14px, 1.4vw, 20px); }
+  .clue-kicker span { color: rgba(255,255,255,.7); font-weight: 600; letter-spacing: .04em; text-transform: none; margin-left: 12px; }
+  .clue-big { font-size: clamp(28px, 3.6vw, 58px); font-weight: 700; line-height: 1.22; max-width: 1150px; margin: 20px 0 34px; text-wrap: balance; }
+  .clue-answer { color: var(--gold); font-size: clamp(22px, 2.6vw, 40px); font-weight: 800; margin: 0 0 22px; }
+  .tmr { display: flex; align-items: center; gap: 22px; width: min(720px, 100%); }
+  .tmr-num { font-size: clamp(44px, 5vw, 76px); font-weight: 800; line-height: 1; min-width: 2.2ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .tmr-bar { flex: 1; height: 16px; border-radius: 999px; background: rgba(255,255,255,.14); overflow: hidden; }
+  .tmr-fill { height: 100%; width: 100%; background: var(--gold); border-radius: 999px; transition: width .2s linear, background .3s ease; }
+  .tmr-fill.late { background: #ff6b52; }
+  .answered { margin-top: 26px; font-weight: 700; font-size: clamp(16px, 1.6vw, 22px); color: rgba(255,255,255,.85); }
+  .answered .n { color: var(--gold); font-size: 1.3em; }
+  .names { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 900px; }
+  .names span { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; animation: pop .25s ease both; }
+
+  /* review */
+  .rv-head { text-align: center; padding: 26px 40px 10px; }
+  .rv-head .clue-big { font-size: clamp(20px, 2.2vw, 34px); margin: 12px auto 16px; }
+  .rv-summary { display: flex; justify-content: center; gap: 22px; font-weight: 700; color: rgba(255,255,255,.8); margin-bottom: 8px; }
+  .rv-summary .c { color: #5de0a5; } .rv-summary .w { color: #ff8b76; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 12px 28px 28px; align-content: start; flex: 1; }
+  .grp { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px 14px 12px; display: flex; flex-direction: column; }
+  .grp.correct { border-color: #22b57c; background: rgba(0,150,95,.28); }
+  .grp.wrong { border-color: rgba(255,120,100,.6); background: rgba(200,65,43,.2); }
+  .grp .txt { font-size: 20px; font-weight: 700; word-break: break-word; }
+  .grp .who { color: rgba(255,255,255,.75); font-size: 13px; margin-top: 4px; flex: 1; }
+  .grp.none .txt { color: rgba(255,255,255,.55); font-style: italic; font-weight: 600; }
+  .seg { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.28); margin-top: 12px; align-self: flex-start; }
+  .seg button { background: transparent; color: #fff; border: 0; padding: 8px 14px; font-weight: 700; font-size: 14px; }
+  .seg button:hover { background: rgba(255,255,255,.12); }
+  .seg button.on.c { background: var(--green); }
+  .seg button.on.w { background: var(--red); }
+  .revealed { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(242,182,50,.18); color: var(--gold); font-weight: 700; border: 1px solid rgba(242,182,50,.4); }
+
+  /* leaderboard */
+  .lbh { width: min(1000px, 100%); margin: 0 auto; padding: 26px 28px 40px; flex: 1; }
+  .lbh-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .lbh-row { display: grid; grid-template-columns: 56px 1fr 150px auto; align-items: center; gap: 16px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .lbh-row .rk { font-size: 26px; font-weight: 800; color: rgba(255,255,255,.55); font-variant-numeric: tabular-nums; }
+  .lbh-row.top1 .rk { color: var(--gold); } .lbh-row.top2 .rk { color: #cfd9d4; } .lbh-row.top3 .rk { color: #e0a06a; }
+  .lbh-row .nm { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .lbh-row .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbh-row .nm .dot { flex: 0 0 auto; }
+  .bar { height: 12px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 8px; }
+  .bar i { display: block; height: 100%; background: var(--gold); border-radius: 999px; transition: width .5s ease; }
+  .lbh-row .sc { font-size: 26px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+  .lbh-row .adm { display: flex; gap: 6px; }
+  .lbh-row .adm:empty { display: none; }
+  .pod-wrap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: end; width: min(900px, 100%); margin: 20px auto 26px; }
+  .pod { text-align: center; border-radius: 16px 16px 8px 8px; padding: 18px 12px; color: #fff; background: var(--green-700); }
+  .pod.p1 { background: linear-gradient(180deg, var(--gold) 0%, var(--gold-600) 100%); color: var(--green-950); min-height: 190px; }
+  .pod.p2 { background: #7d8a85; min-height: 150px; }
+  .pod.p3 { background: #b0713a; min-height: 125px; }
+  .pod .place { font-size: 13px; font-weight: 800; letter-spacing: .14em; opacity: .85; }
+  .pod .nm { font-weight: 800; font-size: clamp(18px, 2vw, 26px); margin: 8px 0 4px; word-break: break-word; }
+  .pod .sc { font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; }
+
+  /* editor */
+  .ed-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 18px; }
+  .ed-scroll { overflow-x: auto; padding-bottom: 12px; }
+  .ed-grid { display: grid; grid-template-columns: 90px repeat(var(--cols, 5), minmax(250px, 1fr)) 44px; gap: 10px; min-width: max-content; }
+  .ed-cat { display: flex; gap: 6px; align-items: center; }
+  .ed-cat .input { font-weight: 700; }
+  .ed-cell { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .ed-cell .input { padding: 8px 10px; font-size: 14px; border-radius: 8px; }
+  .ed-cell textarea.input { min-height: 74px; }
+  .ed-cell .lab { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .ed-val { display: flex; align-items: flex-start; }
+  .ed-val .input { text-align: center; font-weight: 800; padding: 8px 6px; }
+  .x { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--muted); font-weight: 700; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .x:hover { color: var(--red); border-color: #ecc4bb; background: var(--red-50); }
+  .banner { background: var(--gold); color: var(--green-950); padding: 12px 22px; font-weight: 700; display: flex; align-items: center; gap: 14px; }
+  .banner .spacer { flex: 1; }
+</style>
+</head>
+<body>
+<header class="topbar light">
+  <img class="logo" src="assets/webcor-logo.png" alt="Webcor">
+  <div class="topbar-title" id="hTitle">OSHA 500 Review Jeopardy</div>
+  <div class="join-hint" id="hJoin" hidden>Join at <b id="hUrl"></b><span class="pill" id="hCode"></span></div>
+  <div class="hcount" id="hCount" hidden></div>
+  <nav class="hnav" id="hNav"></nav>
+</header>
+
+<main>
+  <section class="view" id="v-home">
+    <div class="light">
+      <div class="hero">
+        <img class="logo" src="assets/webcor-logo.png" alt="Webcor">
+        <div><div class="kicker">Safety training</div><h1 id="homeTitle">OSHA 500 Review Jeopardy</h1><div class="muted">Host a live game. Players join on their phones and answer every clue.</div></div>
+      </div>
+      <div class="home-grid">
+        <div class="card">
+          <h2>Start</h2>
+          <p class="muted" style="margin-top:0">Creates a new game code, then shows the join link and QR code on this screen.</p>
+          <div class="row"><button class="btn btn-primary btn-lg" id="newGameBtn">New game</button><button class="btn btn-lg" id="editBankBtn">Edit question bank</button></div>
+          <div class="setting" style="margin-top:18px"><div><div class="lbl">Open a game by code</div><div class="hint">Reconnect this screen to a game already running.</div></div><form class="row" id="openForm" style="gap:8px"><input class="input code" id="openCode" maxlength="4" style="width:150px;font-size:20px;padding:9px" placeholder="CODE"><button class="btn" type="submit">Open</button></form></div>
+        </div>
+        <div class="card">
+          <h2>Recent games</h2>
+          <ul class="recent" id="recentList"><li class="muted">No games hosted from this browser yet.</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-lobby" hidden>
+    <div class="light">
+      <div class="grid2">
+        <div class="card">
+          <div class="kicker">Join on your phone</div>
+          <div class="join-url" id="lobbyUrl"></div>
+          <div class="kicker" style="margin-top:22px">Game code</div>
+          <div class="code-big" id="lobbyCode"></div>
+          <div class="qr" id="qr"></div>
+          <div class="row" style="margin-top:14px"><button class="btn btn-sm" id="copyLink">Copy join link</button><span class="muted" id="lobbyHint" style="font-size:13px"></span></div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="row" style="justify-content:space-between"><h2 style="margin:0">Players</h2><span class="hcount" id="lobbyCount">0 joined</span></div>
+            <div class="chips" id="lobbyChips"><span class="muted" style="align-self:center">Waiting for players to join.</span></div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h2>Settings</h2>
+            <div class="setting"><div><div class="lbl">Seconds per clue</div><div class="hint">Everyone answers within this window.</div></div><input type="number" id="setTimer" min="10" max="90" step="5" value="30"></div>
+            <div class="setting"><div><div class="lbl">Deduct points for wrong answers</div><div class="hint">Classic rules take the clue value away. Off means no penalty.</div></div><button class="switch" id="setPenalty" type="button" aria-label="Deduct points"></button></div>
+            <div class="row" style="margin-top:18px"><button class="btn btn-gold btn-lg" id="startBtn">Start game</button><button class="btn btn-danger" id="lobbyDelete">Delete game</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-board" hidden>
+    <div class="dark">
+      <div class="banner" id="boardBanner" hidden>All clues have been played.<span class="spacer"></span><button class="btn btn-primary" id="bannerEnd">Show final results</button></div>
+      <div class="board-wrap"><div class="board" id="board"></div></div>
+      <div class="bottombar"><span class="info" id="boardInfo"></span><span class="spacer"></span><button class="btn btn-ghost" id="boardLb">Leaderboard</button><button class="btn btn-ghost" id="boardEnd">End game</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-clue" hidden>
+    <div class="dark">
+      <div class="clue-stage">
+        <div class="clue-kicker"><b id="cCat"></b><span id="cVal"></span></div>
+        <div class="clue-big" id="cClue"></div>
+        <div class="tmr"><div class="tmr-num" id="cNum">30</div><div class="tmr-bar"><div class="tmr-fill" id="cFill"></div></div></div>
+        <div class="answered"><span class="n" id="cAnswered">0</span> of <span id="cTotal">0</span> answered</div>
+        <div class="names" id="cNames"></div>
+      </div>
+      <div class="bottombar"><button class="btn btn-ghost" id="clueCancel">Cancel clue</button><span class="spacer"></span><button class="btn btn-gold" id="clueClose">Close answers now</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-review" hidden>
+    <div class="dark">
+      <div class="rv-head">
+        <div class="clue-kicker"><b id="rCat"></b><span id="rVal"></span></div>
+        <div class="clue-big" id="rClue"></div>
+        <div class="clue-answer" id="rAnswer"></div>
+        <div class="rv-summary" id="rSummary"></div>
+        <div class="muted" id="rHint" style="color:rgba(255,255,255,.6);font-size:14px">Marks were suggested automatically. Click Correct or Wrong on any answer to change it, then reveal.</div>
+      </div>
+      <div class="groups" id="groups"></div>
+      <div class="bottombar" id="rBar"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-leaderboard" hidden>
+    <div class="dark">
+      <div class="lbh">
+        <div class="lbh-top"><div><div class="clue-kicker">Leaderboard</div><h1 id="lbTitle" style="margin:4px 0 0"></h1></div><div class="row"><button class="btn btn-ghost btn-sm" id="lbManage">Manage scores</button><button class="btn btn-gold" id="lbBack">Back</button></div></div>
+        <div id="lbRows"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-end" hidden>
+    <div class="dark">
+      <div class="lbh">
+        <div style="text-align:center"><div class="clue-kicker">Final results</div><h1 id="endTitle" style="margin:6px 0 0"></h1></div>
+        <div class="pod-wrap" id="endPodium"></div>
+        <div id="endRows"></div>
+        <div class="row" style="justify-content:center;margin-top:26px"><button class="btn btn-ghost" id="endCsv">Export CSV</button><button class="btn btn-ghost" id="endDelete">Delete game</button><button class="btn btn-gold" id="endNew">New game</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-editor" hidden>
+    <div class="light" style="max-width:none">
+      <div class="row" style="justify-content:space-between"><div><div class="kicker">Question bank</div><h1 style="font-size:26px">Edit clues, answers and values</h1><div class="muted">Changes apply to games created after you save. Running games keep the bank they started with.</div></div><button class="btn" id="edBack">Back</button></div>
+      <div class="field" style="max-width:520px;margin-top:16px"><label for="edTitle">Game title</label><input class="input" id="edTitle" maxlength="60"></div>
+      <div class="ed-tools">
+        <button class="btn btn-primary" id="edSave">Save bank</button>
+        <button class="btn" id="edAddCat">Add category</button>
+        <button class="btn" id="edAddRow">Add row</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="edExport">Export JSON</button>
+        <button class="btn" id="edImport">Import JSON</button>
+        <input type="file" id="edFile" accept="application/json,.json" hidden>
+        <button class="btn btn-danger" id="edReset">Reset to original slides</button>
+      </div>
+      <div class="ed-scroll"><div class="ed-grid" id="edGrid"></div></div>
+      <div class="row" style="margin-top:8px"><button class="btn btn-primary" id="edSave2">Save bank</button><span class="muted" id="edStatus"></span></div>
+    </div>
+  </section>
+</main>
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  const J = window.J;
+  J.init();
+  const $ = function (id) { return document.getElementById(id); };
+  const VIEWS = ['home', 'lobby', 'board', 'clue', 'review', 'leaderboard', 'end', 'editor'];
+
+  let mode = 'home';           // home | game | editor
+  let code = null, game = null, gameRef = null, override = null, currentView = null;
+  let qrFor = null, transitioning = null, manage = false, draft = null, editorFrom = 'home';
+
+  function show(v) {
+    if (currentView === v) return;
+    currentView = v;
+    VIEWS.forEach(function (x) { $('v-' + x).hidden = x !== v; });
+    window.scrollTo(0, 0);
+  }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._id); toast._id = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+  function modal(opts) {
+    const root = $('modalRoot');
+    root.innerHTML = '<div class="modal-back"><div class="modal"><h3>' + J.esc(opts.title) + '</h3><p>' + J.esc(opts.body || '') + '</p><div class="actions"><button class="btn" data-act="cancel">' + J.esc(opts.cancelLabel || 'Cancel') + '</button><button class="btn ' + (opts.danger ? 'btn-danger' : 'btn-primary') + '" data-act="ok">' + J.esc(opts.okLabel || 'OK') + '</button></div></div></div>';
+    root.querySelector('[data-act=cancel]').onclick = function () { root.innerHTML = ''; };
+    root.querySelector('.modal-back').onclick = function (e) { if (e.target === this) root.innerHTML = ''; };
+    root.querySelector('[data-act=ok]').onclick = function () { root.innerHTML = ''; opts.onOk && opts.onOk(); };
+    root.querySelector('[data-act=ok]').focus();
+  }
+  function fmtAnswer(a) { return a ? 'What is ' + String(a).replace(/[?.]+$/, '') + '?' : ''; }
+  function shortUrl(u) { return u.replace(/^https?:\/\//, '').replace(/\/?\?g=.*$/, ''); }
+  function bank() { return J.sanitiseBank(game && game.bank); }
+  function players() { return (game && game.players) || {}; }
+  function activePlayerIds() {
+    const p = players();
+    const all = Object.keys(p);
+    const online = all.filter(function (k) { return p[k].online !== false; });
+    return online.length ? online : all;
+  }
+
+  // ── bank (shared, editable) ────────────────────────────────────────────
+  async function loadBank() {
+    const snap = await J.ref('bank').get();
+    let b = snap.val();
+    if (!b || !b.categories) { b = J.defaultBank(); await J.ref('bank').set(b); }
+    return J.sanitiseBank(b);
+  }
+
+  // ── games ──────────────────────────────────────────────────────────────
+  function hosted() { return J.lsGet('jeopardy.hosted', []); }
+  function rememberHosted(c, title) {
+    const list = hosted().filter(function (h) { return h.code !== c; });
+    list.unshift({ code: c, title: title, at: Date.now() });
+    J.lsSet('jeopardy.hosted', list.slice(0, 20));
+  }
+  function forgetHosted(c) { J.lsSet('jeopardy.hosted', hosted().filter(function (h) { return h.code !== c; })); }
+
+  async function newGame() {
+    $('newGameBtn').disabled = true;
+    try {
+      const b = await loadBank();
+      let c = J.newCode();
+      for (let i = 0; i < 6; i++) { if (!(await J.gameRef(c, 'meta').get()).exists()) break; c = J.newCode(); }
+      await J.gameRef(c).set({ meta: { title: b.title, createdAt: J.TS(), status: 'lobby', timer: 30, penalty: false }, bank: b });
+      rememberHosted(c, b.title);
+      openGame(c);
+    } catch (e) { console.error(e); toast('Could not create the game. Check the connection.'); }
+    finally { $('newGameBtn').disabled = false; }
+  }
+  function openGame(c) {
+    closeGame();
+    code = c; mode = 'game'; override = null; transitioning = null;
+    location.hash = c;
+    gameRef = J.gameRef(c);
+    gameRef.on('value', function (s) {
+      game = s.val();
+      if (!game || !game.meta) { toast('Game ' + c + ' does not exist any more.'); forgetHosted(c); goHome(); return; }
+      rememberHosted(c, (game.meta && game.meta.title) || 'Jeopardy');
+      render();
+    });
+  }
+  function closeGame() { if (gameRef) { gameRef.off(); gameRef = null; } code = null; game = null; qrFor = null; }
+  function goHome() { closeGame(); mode = 'home'; override = null; if (location.hash) history.replaceState(null, '', location.pathname + location.search); render(); }
+
+  // ── header ─────────────────────────────────────────────────────────────
+  function renderHeader() {
+    const inGame = mode === 'game' && game;
+    $('hTitle').textContent = inGame ? bank().title : (window.DEFAULT_BANK.title);
+    $('hJoin').hidden = !inGame;
+    $('hCount').hidden = !inGame;
+    const nav = $('hNav');
+    nav.innerHTML = '';
+    if (inGame) {
+      $('hUrl').textContent = shortUrl(J.joinUrl(code));
+      $('hCode').textContent = code;
+      const n = Object.keys(players()).length;
+      $('hCount').textContent = n + (n === 1 ? ' player' : ' players');
+      const st = game.meta.status;
+      const btn = function (label, fn, cls) { const b = document.createElement('button'); b.className = 'btn btn-sm ' + (cls || ''); b.textContent = label; b.onclick = fn; nav.appendChild(b); };
+      if (st === 'playing' && override === 'leaderboard') btn('Board', function () { override = null; render(); });
+      if (st === 'playing' && override !== 'leaderboard') btn('Leaderboard', function () { override = 'leaderboard'; render(); });
+      if (st === 'playing') btn('End game', confirmEnd);
+      btn('Home', function () { goHome(); });
+    } else if (mode === 'editor') {
+      const b = document.createElement('button'); b.className = 'btn btn-sm'; b.textContent = 'Back'; b.onclick = leaveEditor; nav.appendChild(b);
+    }
+  }
+
+  // ── render ─────────────────────────────────────────────────────────────
+  function render() {
+    renderHeader();
+    if (mode === 'editor') { show('editor'); return; }
+    if (mode !== 'game' || !game) { renderHome(); show('home'); return; }
+    const meta = game.meta;
+    if (meta.status === 'lobby') { renderLobby(); show('lobby'); return; }
+    if (meta.status === 'ended') { renderEnd(); show('end'); return; }
+    if (override === 'leaderboard') { renderLeaderboard(); show('leaderboard'); return; }
+    const round = game.round;
+    if (!round) { renderBoard(); show('board'); return; }
+    if (round.phase === 'answering') { renderClue(round); show('clue'); return; }
+    renderReview(round); show('review');
+  }
+
+  function renderHome() {
+    $('homeTitle').textContent = window.DEFAULT_BANK.title;
+    const list = hosted();
+    const ul = $('recentList');
+    if (!list.length) { ul.innerHTML = '<li class="muted">No games hosted from this browser yet.</li>'; return; }
+    ul.innerHTML = list.map(function (h) {
+      const d = new Date(h.at);
+      return '<li><span class="c">' + J.esc(h.code) + '</span><span class="t">' + J.esc(h.title || '') + '</span><time>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) + '</time><button class="btn btn-sm" data-open="' + J.esc(h.code) + '">Open</button></li>';
+    }).join('');
+  }
+  $('recentList').addEventListener('click', function (e) { const b = e.target.closest('[data-open]'); if (b) openGame(b.getAttribute('data-open')); });
+  $('newGameBtn').addEventListener('click', newGame);
+  $('openForm').addEventListener('submit', function (e) { e.preventDefault(); const c = J.cleanCode($('openCode').value); if (c.length === 4) openGame(c); });
+  $('openCode').addEventListener('input', function () { this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); });
+
+  function renderLobby() {
+    const url = J.joinUrl(code);
+    $('lobbyUrl').textContent = shortUrl(url);
+    $('lobbyCode').textContent = code;
+    if (qrFor !== code) {
+      qrFor = code; $('qr').innerHTML = '';
+      if (window.QRCode) new QRCode($('qr'), { text: url, width: 220, height: 220, colorDark: '#063d2a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      $('lobbyHint').textContent = 'Scan the code or open the link and enter ' + code + '.';
+    }
+    const p = players(), ids = Object.keys(p).sort(function (a, b) { return (p[a].joinedAt || 0) - (p[b].joinedAt || 0); });
+    $('lobbyCount').textContent = ids.length + ' joined';
+    $('lobbyChips').innerHTML = ids.length ? ids.map(function (k) { return '<span class="chip"><span class="dot ' + (p[k].online !== false ? 'online' : '') + '"></span>' + J.esc(p[k].name) + '</span>'; }).join('') : '<span class="muted" style="align-self:center">Waiting for players to join.</span>';
+    if (document.activeElement !== $('setTimer')) $('setTimer').value = game.meta.timer || 30;
+    $('setPenalty').classList.toggle('on', !!game.meta.penalty);
+  }
+  $('copyLink').addEventListener('click', function () {
+    const url = J.joinUrl(code);
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { toast('Join link copied.'); }, function () { toast(url); });
+    else toast(url);
+  });
+  $('setTimer').addEventListener('change', function () {
+    let v = Math.round(Number(this.value) || 30); v = Math.max(10, Math.min(90, v)); this.value = v;
+    J.gameRef(code, 'meta/timer').set(v);
+  });
+  $('setPenalty').addEventListener('click', function () { J.gameRef(code, 'meta/penalty').set(!(game.meta.penalty)); });
+  $('startBtn').addEventListener('click', function () { J.gameRef(code, 'meta/status').set('playing'); });
+  $('lobbyDelete').addEventListener('click', confirmDelete);
+
+  function renderBoard() {
+    const b = bank(), board = game.board || {};
+    const cols = b.categories.length, rows = Math.max.apply(null, [0].concat(b.categories.map(function (c) { return c.clues.length; })));
+    const el = $('board');
+    el.style.setProperty('--cols', cols); el.style.setProperty('--rows', rows);
+    let html = b.categories.map(function (c) { return '<div class="cat">' + J.esc(c.name) + '</div>'; }).join('');
+    let left = 0, total = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const q = b.categories[c].clues[r];
+        if (!q) { html += '<div></div>'; continue; }
+        total++;
+        const used = !!board[c + '_' + r];
+        if (!used) left++;
+        html += '<button class="tile' + (used ? ' used' : '') + '" data-c="' + c + '" data-r="' + r + '" ' + (used ? 'disabled' : '') + '>' + J.money(q.value) + '</button>';
+      }
+    }
+    el.innerHTML = html;
+    $('boardInfo').textContent = left + ' of ' + total + ' clues left';
+    $('boardBanner').hidden = left > 0;
+  }
+  $('board').addEventListener('click', function (e) {
+    const t = e.target.closest('.tile'); if (!t || t.disabled) return;
+    openClue(Number(t.getAttribute('data-c')), Number(t.getAttribute('data-r')));
+  });
+  function openClue(c, r) {
+    const q = bank().categories[c].clues[r];
+    const timer = Number(game.meta.timer) || 30;
+    const now = J.serverNow();
+    const upd = {};
+    upd['board/' + c + '_' + r] = true;
+    upd['round'] = { c: c, r: r, value: Number(q.value) || 0, phase: 'answering', startedAt: now, endsAt: now + timer * 1000 };
+    transitioning = null;
+    J.gameRef(code).update(upd);
+  }
+  $('boardLb').addEventListener('click', function () { override = 'leaderboard'; render(); });
+  $('boardEnd').addEventListener('click', confirmEnd);
+  $('bannerEnd').addEventListener('click', endGame);
+
+  function roundKey(round) { return round.c + '_' + round.r; }
+  function roundAnswers(round) { return (game.answers && game.answers[roundKey(round)]) || {}; }
+  function renderClue(round) {
+    const b = bank(), cat = b.categories[round.c], q = cat && cat.clues[round.r] || { clue: '' };
+    $('cCat').textContent = cat ? cat.name : ''; $('cVal').textContent = J.money(round.value);
+    $('cClue').textContent = q.clue;
+    const ans = roundAnswers(round), p = players();
+    const who = Object.keys(ans).filter(function (k) { return ans[k].text; });
+    $('cAnswered').textContent = who.length;
+    $('cTotal').textContent = activePlayerIds().length;
+    $('cNames').innerHTML = who.map(function (k) { return '<span>' + J.esc(p[k] ? p[k].name : 'Player') + '</span>'; }).join('');
+    tickTimer(round);
+  }
+  function tickTimer(round) {
+    const total = Math.max(1, round.endsAt - round.startedAt);
+    const rem = Math.max(0, round.endsAt - J.serverNow());
+    $('cFill').style.width = (Math.min(1, rem / total) * 100) + '%';
+    $('cFill').className = 'tmr-fill' + (rem <= 5000 ? ' late' : '');
+    $('cNum').textContent = Math.ceil(rem / 1000);
+  }
+  // The host tab is the authority on closing the answer window.
+  setInterval(function () {
+    if (mode !== 'game' || !game || !game.round || game.round.phase !== 'answering') return;
+    const round = game.round;
+    tickTimer(round);
+    const key = roundKey(round);
+    if (transitioning === key) return;
+    const ans = roundAnswers(round);
+    const answered = Object.keys(ans).filter(function (k) { return ans[k].text; }).length;
+    const active = activePlayerIds().length;
+    if (J.serverNow() >= round.endsAt || (active > 0 && answered >= active)) { transitioning = key; toReview(round); }
+  }, 250);
+  function toReview(round) {
+    const key = roundKey(round), q = bank().categories[round.c].clues[round.r];
+    const ans = roundAnswers(round), upd = {};
+    Object.keys(ans).forEach(function (pid) { if (!ans[pid].mark) upd['answers/' + key + '/' + pid + '/mark'] = J.suggestMark(ans[pid].text, q) || 'wrong'; });
+    upd['round/phase'] = 'review';
+    J.gameRef(code).update(upd);
+  }
+  $('clueClose').addEventListener('click', function () { if (game && game.round) { transitioning = roundKey(game.round); toReview(game.round); } });
+  $('clueCancel').addEventListener('click', function () {
+    const round = game && game.round; if (!round) return;
+    modal({ title: 'Cancel this clue?', body: 'The tile goes back on the board and any answers already sent are discarded.', okLabel: 'Cancel clue', danger: true, onOk: function () {
+      const upd = {}; upd['round'] = null; upd['board/' + roundKey(round)] = null; upd['answers/' + roundKey(round)] = null;
+      J.gameRef(code).update(upd);
+    } });
+  });
+
+  function renderReview(round) {
+    const b = bank(), cat = b.categories[round.c], q = cat && cat.clues[round.r] || { clue: '', answer: '' };
+    const key = roundKey(round), ans = roundAnswers(round), p = players();
+    $('rCat').textContent = cat ? cat.name : ''; $('rVal').textContent = J.money(round.value);
+    $('rClue').textContent = q.clue; $('rAnswer').textContent = fmtAnswer(q.answer);
+    // Late answers without a mark get the suggestion once.
+    const fill = {};
+    Object.keys(ans).forEach(function (pid) { if (ans[pid].text && !ans[pid].mark) fill['answers/' + key + '/' + pid + '/mark'] = J.suggestMark(ans[pid].text, q) || 'wrong'; });
+    if (Object.keys(fill).length) J.gameRef(code).update(fill);
+
+    const groups = {}, order = [];
+    let nC = 0, nW = 0;
+    Object.keys(ans).forEach(function (pid) {
+      const a = ans[pid]; if (!a.text) return;
+      const n = J.normalise(a.text) || a.text.toLowerCase();
+      if (!groups[n]) { groups[n] = { text: a.text, pids: [], mark: a.mark || fill['answers/' + key + '/' + pid + '/mark'] }; order.push(n); }
+      groups[n].pids.push(pid);
+      if (groups[n].mark === 'correct') nC++; else nW++;
+    });
+    const none = Object.keys(p).filter(function (pid) { return !(ans[pid] && ans[pid].text); });
+    order.sort(function (x, y) { return (groups[y].mark === 'correct') - (groups[x].mark === 'correct') || groups[y].pids.length - groups[x].pids.length; });
+    $('rSummary').innerHTML = '<span class="c">' + nC + ' correct</span><span class="w">' + nW + ' wrong</span><span>' + none.length + ' no answer</span>';
+    let html = order.map(function (n) {
+      const g = groups[n];
+      return '<div class="grp ' + (g.mark === 'correct' ? 'correct' : 'wrong') + '"><div class="txt">' + J.esc(g.text) + '</div><div class="who">' + g.pids.map(function (pid) { return J.esc(p[pid] ? p[pid].name : 'Player'); }).join(', ') + '</div>' +
+        '<div class="seg"><button class="c ' + (g.mark === 'correct' ? 'on' : '') + '" data-mark="correct" data-pids="' + g.pids.join(',') + '">Correct</button><button class="w ' + (g.mark !== 'correct' ? 'on' : '') + '" data-mark="wrong" data-pids="' + g.pids.join(',') + '">Wrong</button></div></div>';
+    }).join('');
+    if (none.length) html += '<div class="grp none"><div class="txt">No answer</div><div class="who">' + none.map(function (pid) { return J.esc(p[pid].name); }).join(', ') + '</div></div>';
+    $('groups').innerHTML = html || '<div class="grp none"><div class="txt">Nobody answered.</div></div>';
+    const bar = $('rBar');
+    if (round.phase === 'review') {
+      $('rHint').hidden = false;
+      bar.innerHTML = '<button class="btn btn-ghost" id="rvBack">Back to board</button><span class="spacer"></span><button class="btn btn-gold btn-lg" id="rvReveal">Reveal to players</button>';
+      $('rvReveal').onclick = function () { J.gameRef(code, 'round/phase').set('reveal'); };
+    } else {
+      $('rHint').hidden = true;
+      bar.innerHTML = '<span class="revealed">Revealed to players</span><span class="spacer"></span><button class="btn btn-ghost" id="rvLb">Leaderboard</button><button class="btn btn-gold btn-lg" id="rvBack">Back to board</button>';
+      $('rvLb').onclick = function () { override = 'leaderboard'; render(); };
+    }
+    $('rvBack').onclick = function () { J.gameRef(code, 'round').remove(); };
+  }
+  $('groups').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-mark]'); if (!b || !game.round) return;
+    const key = roundKey(game.round), upd = {};
+    b.getAttribute('data-pids').split(',').forEach(function (pid) { upd['answers/' + key + '/' + pid + '/mark'] = b.getAttribute('data-mark'); });
+    J.gameRef(code).update(upd);
+  });
+
+  function scoreRows(list, admin) {
+    const max = Math.max(1, list[0] ? Math.abs(list[0].score) : 1);
+    return list.map(function (x) {
+      const w = Math.max(0, x.score) / max * 100;
+      const adm = admin ? '<button class="btn btn-ghost btn-sm" data-adj="100" data-pid="' + x.pid + '">+100</button><button class="btn btn-ghost btn-sm" data-adj="-100" data-pid="' + x.pid + '">-100</button><button class="btn btn-ghost btn-sm" data-remove="' + x.pid + '">Remove</button>' : '';
+      return '<div class="lbh-row top' + Math.min(x.rank, 4) + '"><div class="rk">' + x.rank + '</div><div><div class="nm"><span class="dot ' + (x.online ? 'online' : '') + '"></span><span>' + J.esc(x.name) + '</span></div><div class="bar"><i style="width:' + w + '%"></i></div></div><div class="sc">' + J.money(x.score) + '</div><div class="adm">' + adm + '</div></div>';
+    }).join('') || '<div class="muted" style="color:rgba(255,255,255,.6)">No players yet.</div>';
+  }
+  function renderLeaderboard() {
+    $('lbTitle').textContent = bank().title;
+    $('lbManage').textContent = manage ? 'Done' : 'Manage scores';
+    $('lbRows').innerHTML = scoreRows(J.deriveScores(game), manage);
+  }
+  $('lbManage').addEventListener('click', function () { manage = !manage; renderLeaderboard(); });
+  $('lbBack').addEventListener('click', function () { override = null; manage = false; render(); });
+  $('lbRows').addEventListener('click', function (e) {
+    const a = e.target.closest('[data-adj]'), r = e.target.closest('[data-remove]');
+    if (a) J.gameRef(code, 'players/' + a.getAttribute('data-pid') + '/adjust').transaction(function (v) { return (Number(v) || 0) + Number(a.getAttribute('data-adj')); });
+    if (r) {
+      const pid = r.getAttribute('data-remove'), p = players()[pid];
+      modal({ title: 'Remove ' + (p ? p.name : 'player') + '?', body: 'Their answers stay on record, but they leave the leaderboard and are sent back to the join screen.', okLabel: 'Remove', danger: true, onOk: function () { J.gameRef(code, 'players/' + pid).remove(); } });
+    }
+  });
+
+  function confirmEnd() {
+    modal({ title: 'End the game?', body: 'Players see the final results. Unplayed clues stay unplayed.', okLabel: 'End game', onOk: endGame });
+  }
+  function endGame() { J.gameRef(code).update({ 'meta/status': 'ended', 'meta/endedAt': J.TS(), round: null }); override = null; }
+  function confirmDelete() {
+    modal({ title: 'Delete game ' + code + '?', body: 'Removes the game, its players and scores. This cannot be undone.', okLabel: 'Delete', danger: true, onOk: function () {
+      const c = code; closeGame(); J.gameRef(c).remove(); forgetHosted(c); goHome(); toast('Game ' + c + ' deleted.');
+    } });
+  }
+  function renderEnd() {
+    const list = J.deriveScores(game);
+    $('endTitle').textContent = bank().title;
+    const pod = function (x, cls, place) { return x ? '<div class="pod ' + cls + '"><div class="place">' + place + '</div><div class="nm">' + J.esc(x.name) + '</div><div class="sc">' + J.money(x.score) + '</div></div>' : '<div></div>'; };
+    $('endPodium').innerHTML = pod(list[1], 'p2', '2ND') + pod(list[0], 'p1', '1ST') + pod(list[2], 'p3', '3RD');
+    $('endRows').innerHTML = scoreRows(list, false);
+  }
+  $('endCsv').addEventListener('click', function () {
+    const list = J.deriveScores(game);
+    const csv = ['Rank,Name,Score,Correct,Wrong,Answered'].concat(list.map(function (x) { return [x.rank, '"' + String(x.name).replace(/"/g, '""') + '"', x.score, x.correct, x.wrong, x.answered].join(','); })).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'jeopardy-' + code + '-results.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('endDelete').addEventListener('click', confirmDelete);
+  $('endNew').addEventListener('click', function () { goHome(); newGame(); });
+
+  // ── editor ─────────────────────────────────────────────────────────────
+  async function openEditor() {
+    editorFrom = mode;
+    mode = 'editor'; render();
+    $('edStatus').textContent = 'Loading…';
+    try { draft = await loadBank(); } catch (e) { draft = J.defaultBank(); }
+    $('edStatus').textContent = '';
+    renderEditor();
+  }
+  function leaveEditor() { mode = code ? 'game' : 'home'; if (mode === 'home' && location.hash) history.replaceState(null, '', location.pathname + location.search); render(); }
+  function renderEditor() {
+    $('edTitle').value = draft.title;
+    const cols = draft.categories.length, rows = Math.max.apply(null, [1].concat(draft.categories.map(function (c) { return c.clues.length; })));
+    draft.categories.forEach(function (c) { while (c.clues.length < rows) c.clues.push({ value: (c.clues.length + 1) * 100, clue: '', answer: '', accept: '' }); });
+    const g = $('edGrid');
+    g.style.setProperty('--cols', cols);
+    let html = '<div class="ed-cat"></div>';
+    draft.categories.forEach(function (c, ci) { html += '<div class="ed-cat"><input class="input" data-f="name" data-c="' + ci + '" value="' + J.esc(c.name) + '" placeholder="Category"><button class="x" data-delcat="' + ci + '" title="Remove category">&times;</button></div>'; });
+    html += '<div></div>';
+    for (let r = 0; r < rows; r++) {
+      html += '<div class="ed-val"><input class="input" type="number" step="50" data-f="value" data-r="' + r + '" value="' + (draft.categories[0] && draft.categories[0].clues[r] ? draft.categories[0].clues[r].value : (r + 1) * 100) + '" title="Value for this row"></div>';
+      draft.categories.forEach(function (c, ci) {
+        const q = c.clues[r];
+        html += '<div class="ed-cell"><span class="lab">Clue</span><textarea class="input" data-f="clue" data-c="' + ci + '" data-r="' + r + '" placeholder="Clue shown to players">' + J.esc(q.clue) + '</textarea><span class="lab">Answer</span><input class="input" data-f="answer" data-c="' + ci + '" data-r="' + r + '" value="' + J.esc(q.answer) + '" placeholder="Correct response"><span class="lab">Also accept</span><input class="input" data-f="accept" data-c="' + ci + '" data-r="' + r + '" value="' + J.esc(q.accept) + '" placeholder="alternates, comma separated"></div>';
+      });
+      html += '<div><button class="x" data-delrow="' + r + '" title="Remove row">&times;</button></div>';
+    }
+    g.innerHTML = html;
+  }
+  $('edGrid').addEventListener('input', function (e) {
+    const el = e.target, f = el.getAttribute('data-f'); if (!f) return;
+    const c = Number(el.getAttribute('data-c')), r = Number(el.getAttribute('data-r'));
+    if (f === 'name') draft.categories[c].name = el.value;
+    else if (f === 'value') draft.categories.forEach(function (cat) { if (cat.clues[r]) cat.clues[r].value = Number(el.value) || 0; });
+    else draft.categories[c].clues[r][f] = el.value;
+  });
+  $('edGrid').addEventListener('click', function (e) {
+    const dc = e.target.closest('[data-delcat]'), dr = e.target.closest('[data-delrow]');
+    if (dc) { if (draft.categories.length <= 1) { toast('Keep at least one category.'); return; } draft.categories.splice(Number(dc.getAttribute('data-delcat')), 1); renderEditor(); }
+    if (dr) { const r = Number(dr.getAttribute('data-delrow')); if (draft.categories[0].clues.length <= 1) { toast('Keep at least one row.'); return; } draft.categories.forEach(function (c) { c.clues.splice(r, 1); }); renderEditor(); }
+  });
+  $('edTitle').addEventListener('input', function () { draft.title = this.value; });
+  $('edAddCat').addEventListener('click', function () {
+    if (draft.categories.length >= 6) { toast('Six categories is the most the board fits.'); return; }
+    const rows = draft.categories[0].clues.length, clues = [];
+    for (let r = 0; r < rows; r++) clues.push({ value: draft.categories[0].clues[r].value, clue: '', answer: '', accept: '' });
+    draft.categories.push({ name: 'New category', clues: clues }); renderEditor();
+  });
+  $('edAddRow').addEventListener('click', function () {
+    const rows = draft.categories[0].clues.length;
+    if (rows >= 6) { toast('Six rows is the most the board fits.'); return; }
+    const last = draft.categories[0].clues[rows - 1];
+    draft.categories.forEach(function (c) { c.clues.push({ value: (Number(last.value) || rows * 100) + 100, clue: '', answer: '', accept: '' }); }); renderEditor();
+  });
+  async function saveBank() {
+    const b = J.sanitiseBank(draft);
+    const missing = b.categories.reduce(function (n, c) { return n + c.clues.filter(function (q) { return !q.clue.trim() || !q.answer.trim(); }).length; }, 0);
+    $('edStatus').textContent = 'Saving…';
+    try { await J.ref('bank').set(b); draft = b; $('edStatus').textContent = 'Saved' + (missing ? ' (' + missing + ' clue' + (missing > 1 ? 's' : '') + ' still blank)' : '.'); toast('Question bank saved.'); }
+    catch (e) { $('edStatus').textContent = 'Save failed.'; toast('Could not save. Check the connection.'); }
+  }
+  $('edSave').addEventListener('click', saveBank);
+  $('edSave2').addEventListener('click', saveBank);
+  $('edBack').addEventListener('click', leaveEditor);
+  $('editBankBtn').addEventListener('click', openEditor);
+  $('edReset').addEventListener('click', function () {
+    modal({ title: 'Reset to the original slides?', body: 'Replaces every category, clue and answer with the bank imported from the PowerPoint. Your edits are lost when you save.', okLabel: 'Reset', danger: true, onOk: function () { draft = J.defaultBank(); renderEditor(); $('edStatus').textContent = 'Reset. Save to apply.'; } });
+  });
+  $('edExport').addEventListener('click', function () {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(J.sanitiseBank(draft), null, 2)], { type: 'application/json' }));
+    a.download = 'jeopardy-bank.json'; document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('edImport').addEventListener('click', function () { $('edFile').value = ''; $('edFile').click(); });
+  $('edFile').addEventListener('change', function () {
+    const f = this.files && this.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = function () {
+      try { const b = J.sanitiseBank(JSON.parse(rd.result)); if (!b.categories.length) throw new Error('empty'); draft = b; renderEditor(); $('edStatus').textContent = 'Imported. Save to apply.'; }
+      catch (e) { toast('That file is not a valid question bank.'); }
+    };
+    rd.readAsText(f);
+  });
+
+  // ── boot ───────────────────────────────────────────────────────────────
+  const h = J.cleanCode((location.hash || '').replace('#', ''));
+  if ((location.hash || '').replace('#', '') === 'editor') openEditor();
+  else if (h.length === 4) openGame(h);
+  else render();
+  window.addEventListener('hashchange', function () {
+    const c = J.cleanCode((location.hash || '').replace('#', ''));
+    if (c.length === 4 && c !== code) openGame(c);
+    else if (!location.hash && mode === 'game') goHome();
+  });
+})();
+</script>
+</body>
+</html>
